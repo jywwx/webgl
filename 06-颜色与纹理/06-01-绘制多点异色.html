@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绘制多点异色</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        attribute vec4 a_Color;
+        varying   vec4 v_Color;
+        void main() { 
+            gl_Position = a_Position; 
+            gl_PointSize = 50.0; 
+            v_Color = a_Color;
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        varying vec4 v_Color;
+        void main() { 
+            gl_FragColor = v_Color;
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+
+
+        // 顶点数据
+        const vertices = new Float32Array([
+            0,    0.1,
+            -0.1, -0.1,
+            0.1,  -0.1
+        ]);
+        // 创建顶点缓冲对象
+        const vertexBuffer = gl.createBuffer();
+        // gl绑定缓冲对象
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+        // 往缓冲区对象写入数据
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        const gl_position = gl.getAttribLocation(gl.program,'a_Position');
+       // 将缓冲区对象分配给Arribute变量
+        gl.vertexAttribPointer(gl_position, 2, gl.FLOAT, false, 0, 0);
+        // 开启attribute 批量处理功能
+        gl.enableVertexAttribArray(gl_position);
+
+
+
+        // 颜色数据
+        const colors = new Float32Array([
+           1,0,0,
+           0,1,0,
+           0,0,1
+        ])
+
+        // 创建颜色缓冲区对象
+        const colorBuffer = gl.createBuffer();
+        // 将颜色缓冲区对象绑定webgl 上下文对象
+        gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+        // 往缓冲区对象写入数据
+        gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+        const gl_color = gl.getAttribLocation(gl.program, 'a_Color');
+        gl.vertexAttribPointer(gl_color, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(gl_color);
+
+
+        gl.drawArrays(gl.POINTS,0,3);
+    </script>
+</body>
+
+</html>

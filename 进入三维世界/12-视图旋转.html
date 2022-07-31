@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>视图位移</title>
+  <link rel="icon" href="https://img.kaikeba.com/kkb_portal_icon.ico">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #canvas {
+      background-color: antiquewhite;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+  <!-- 顶点着色器 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec4 a_Position;
+      uniform mat4 u_PvMatrix;
+      void main(){
+        //点位
+        gl_Position=u_PvMatrix * a_Position;
+      }
+    </script>
+  <!-- 片元着色器 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 u_Color;
+      void main(){
+        gl_FragColor=u_Color;
+      }
+    </script>
+  <script type="module">
+    import { Matrix4, Vector3, Quaternion, Object3D, OrthographicCamera } from 'https://unpkg.com/three/build/three.module.js';
+    import { initShaders,   } from "../jsm/Utils.js";
+    import  Poly  from '../jsm/Poly.js'
+
+    const canvas = document.querySelector("#canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 获取着色器文本
+    const vsSource = document.querySelector("#vertexShader").innerText;
+    const fsSource = document.querySelector("#fragmentShader").innerText;
+    const gl = canvas.getContext("webgl");
+    initShaders(gl, vsSource, fsSource);
+
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+    const source1 = [
+        0, 0.3, -0.2,
+        - 0.3, -0.3, -0.2,
+        0.3, -0.3, -0.2
+    ]
+
+    const source2 = [
+        0, 0.3, 0.2,
+        - 0.3, -0.3, 0.2,
+        0.3, -0.3, 0.2
+    ]
+
+
+
+    // 正交投影矩阵
+    const projectMatrix = new Matrix4();
+    // 定义相机世界的高度尺寸的一半
+    const halfH = 2;
+
+    // 计算画布的宽高比
+    const ratio = canvas.width / canvas.height;
+    // 基于halfH 和画布的宽高比 计算相机世界宽度尺寸的一般
+
+    const haflW = ratio * halfH;
+    // 定义相机世界的6个边界
+
+    const [left,right,top,bottom,near,far] = [-haflW,halfH,halfH,-halfH,0,4];
+
+    // 获取正交投影矩阵
+    projectMatrix.makeOrthographic(left,right,top,bottom,near,far);
+
+    // 相机视点
+    const eye = new Vector3(1,0,3);
+    // 目标点
+    const target = new Vector3(0.5,0.5,0);
+
+    // 上方向 默认
+    const up = new Vector3(0,1,0);
+
+
+
+
+
+    //  正交相机
+    const camera = new OrthographicCamera(left,right,top,bottom,near,far);
+
+    
+    
+
+    camera.position.copy(eye);
+    camera.lookAt(target);
+    camera.updateWorldMatrix(true);
+
+    // 投影视图矩阵
+    const pvMatrix = new Matrix4().multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse
+    )
+    // 投影视图矩阵等于 相机的正交矩阵乘以 相机的世界坐标系的逆矩阵
+
+
+    const trangle1 = createTrangle([1, 0, 0, 1],source1);
+    const trangle2 = createTrangle([1,1,0,1],source2);
+
+    render();
+
+    function render () {
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      trangle1.init();
+      trangle1.draw();
+      trangle2.init();
+      trangle2.draw();
+    }
+
+    function createTrangle (color,source) {
+       return new Poly({
+            gl,
+            source,
+            type:'TRIANGLES',
+            attributes:{
+                a_Position:{
+                    size:3,
+                    index:0,
+                }
+            },
+            uniforms:{
+                u_PvMatrix:{
+                    type:'uniformMatrix4fv',
+                    value:pvMatrix.elements
+                },
+                u_Color:{
+                    type:'uniform4fv',
+                    value:color
+                }
+            }
+        })
+    }
+
+  </script>
+</body>
+
+</html>

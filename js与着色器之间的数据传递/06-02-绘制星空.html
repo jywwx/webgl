@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画一个点</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+           background: url('../image/sky.jpg');
+           background-size: cover;
+           background-position: right bottom;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <!--定点着色器-->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        attribute float a_PonitSize;
+        void main() { 
+            gl_Position = a_Position; 
+            gl_PointSize = a_PonitSize; 
+        }
+    </script>
+    <!--片元着色器-->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform vec4 u_glFragColor;
+        
+        void main() { 
+            float dist = distance(gl_PointCoord,vec2(0.5,0.5));
+            if (dist < 0.5) {
+                gl_FragColor = u_glFragColor;
+            } else {
+                discard;
+            }
+        }
+    </script>
+    <script type="module">
+        import { initShaders, getMousePosInwebgl } from '../jsm/utils.js';
+        import  Compose  from '../jsm/Compose.js';
+        import  Track  from '../jsm/Track.js';
+
+        const compose = new Compose();
+
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+        initShaders(gl, vsSource, fsSource);
+
+
+        // 通过程序对象获取 attribute 变量
+        const a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+        // js控制点的大小
+        const startsize = gl.getAttribLocation(gl.program, 'a_PonitSize');
+        const u_glFragColor = gl.getUniformLocation(gl.program,'u_glFragColor');
+
+        //刷底色
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        const starts=[];
+
+        function render () {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            starts.forEach(({x,y,size,a}) => {
+               gl.vertexAttrib2f(a_Position,x,y);  
+               gl.vertexAttrib1f(startsize,size);
+               const colorArr = new Float32Array([0.87,0.91,1,a]);
+               gl.uniform4fv(u_glFragColor,colorArr);
+               gl.drawArrays(gl.POINTS,0,1);
+            })
+        }
+
+
+        // 鼠标点击事件
+        canvas.addEventListener('click',(event) => {
+            const {clientX,clientY} = event;
+            const {top,right,bottom,left} = canvas.getBoundingClientRect();
+            const [cssX,cssY] = [clientX-left,clientY-top];
+            const [halfWidth,harfHeight] = [canvas.width/2,canvas.height/2];
+            const [xBaseCenter,yBaseCenter] = [cssX-halfWidth,cssY-harfHeight];
+            const yBaseCenterTop = -yBaseCenter;
+            const [x,y] = [xBaseCenter/halfWidth,yBaseCenterTop/harfHeight];
+
+
+            const a = 1;
+
+            const targetObj = {x,y,size:Math.random() * 5 + 2,a}
+            const track = new Track(targetObj);
+            track.start = new Date();
+            track.keyMap= new Map(
+                [
+                    [
+                        'a',
+                        [ 
+                            [500,a],
+                            [1000,0],
+                            [1500,a]
+                        ]
+                    ]
+                ]);
+            track.timeLen = 2000;
+            track.loop = true;
+            compose.add(track);
+            starts.push(targetObj); 
+        })
+
+        !(function animation(){
+            compose.update(new Date());
+            render();
+            requestAnimationFrame(animation);  
+        })()
+    </script>
+</body>
+
+</html>

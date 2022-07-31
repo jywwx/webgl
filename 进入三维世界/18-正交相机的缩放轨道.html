@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>正交相机的缩放轨道</title>
+  <link rel="icon" href="https://img.kaikeba.com/kkb_portal_icon.ico">
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+
+    #canvas {
+      background-color: antiquewhite;
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvas"></canvas>
+  <!-- 顶点着色器 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+      attribute vec4 a_Position;
+      uniform mat4 u_PvMatrix;
+      uniform mat4 u_ModelMatrix;
+      void main(){
+        //点位
+        gl_Position= u_PvMatrix * u_ModelMatrix *  a_Position;
+      }
+    </script>
+  <!-- 片元着色器 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    precision mediump float;
+    uniform vec4 u_Color;
+      void main(){
+        gl_FragColor=u_Color;
+      }
+    </script>
+  <script type="module">
+    import { Matrix4, Vector3, Quaternion, Object3D, OrthographicCamera, 
+        PerspectiveCamera
+     } from 'https://unpkg.com/three/build/three.module.js';
+    import { initShaders,   } from "../jsm/Utils.js";
+    import  Poly  from '../jsm/Poly.js'
+
+    const canvas = document.querySelector("#canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // 获取着色器文本
+    const vsSource = document.querySelector("#vertexShader").innerText;
+    const fsSource = document.querySelector("#fragmentShader").innerText;
+    const gl = canvas.getContext("webgl");
+    initShaders(gl, vsSource, fsSource);
+
+    gl.clearColor(0, 0, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+    const eye = new Vector3(1,1,1);
+    const target = new Vector3(0,0,-2.5);
+    const up = new Vector3(0,1,0)
+    const halfH = 2;
+    const ratio = canvas.width / canvas.height;
+    const halfW = ratio * halfH;
+
+    const [left, right, top, bottom, near, far] = [
+        -halfW,halfW,halfH,-halfH,1,8
+    ]
+
+   const camera = new OrthographicCamera(left, right, top, bottom, near, far);
+
+    camera.position.copy(eye);
+    camera.lookAt(target);
+    camera.updateWorldMatrix(true);
+
+    const pvMatrix = new Matrix4().
+    multiplyMatrices(
+        camera.projectionMatrix,
+        camera.matrixWorldInverse
+    )
+
+
+    const triangle1 = createTrangle(
+      [1, 0, 0, 1],
+      new Matrix4().setPosition(-0.5, 0, -3)
+    )
+    const triangle2 = createTrangle(
+      [1, 0, 0, 1],
+      new Matrix4().setPosition(0.5, 0, -3)
+    )
+
+    const triangle3 = createTrangle(
+      [1, 1, 0, 1],
+      new Matrix4().setPosition(-0.5, 0, -2)
+    )
+
+    const triangle4 = createTrangle(
+      [1, 1, 0, 1],
+      new Matrix4().setPosition(0.5, 0, -2)
+    )
+
+    /*平移轨道*/
+    // 声明基础数据
+    const mouseButtons = new Map([
+        [2,'pan']
+    ]);
+
+    let state = 'none';
+    const [dragStart,dragEnd] = [new Vector3(),new Vector3()]
+
+    const panOffset = new Vector3();
+    const screenSpacePanning = true;
+
+
+    // canvas绑定滚轮事件
+    const zoomScale = 0.95;
+    canvas.addEventListener('wheel',handleMouseWheel)
+
+    // 在canvas 上绑定鼠标事件
+    canvas.addEventListener('contextmenu',(event) => {
+        event.preventDefault();
+    })
+
+    canvas.addEventListener('pointerdown',({clientX, clientY, button})=> {
+        dragStart.set(clientX,clientY);
+        state = mouseButtons.get(button);
+    })
+
+    canvas.addEventListener('pointermove',(event)=> {
+        switch (state) {
+            case 'pan':
+                handleMouseMovePan(event);
+            break    
+        }
+    })
+
+    canvas.addEventListener('pointerup',()=> {
+        state = 'none';
+    })
+
+    function handleMouseWheel ({deltaY}) {
+      if (deltaY < 0) {
+        dolly( 1 / zoomScale);
+      } else {
+        dolly(zoomScale)
+      }
+      update();
+    }
+
+    function dolly(dollyScale) {
+       camera.zoom *= dollyScale;
+       camera.updateProjectionMatrix()
+    }
+
+    function handleMouseMovePan({clientX,clientY}) {
+        dragEnd.set(clientX,clientY);
+        pan(dragEnd.clone().sub(dragStart));
+        dragStart.copy(dragEnd);
+    }
+
+
+    function pan (delta) {
+        // 相机近裁剪面尺寸
+        const cameraW = camera.right - camera.left;
+        const cameraH = camera.top - camera.bottom;
+        // 指针拖曳量在画布中的比值
+        const ratioX = delta.x / canvas.clientWidth;
+        const ratioY = delta.y / canvas.clientHeight;
+
+        //将像素单位的位移量转换为相机近裁剪面上的位移量
+        const distanceLeft = ratioX * cameraW;
+        const distanceUp = ratioY * cameraH;
+
+        // 相机本地坐标系里的X轴
+        const mx = new Vector3().setFromMatrixColumn(camera.matrix, 0);
+        
+        // 相机X轴平移量
+        const vx = mx.clone().multiplyScalar(-distanceLeft);
+
+        // 相机Z轴平移量
+        const vy = new Vector3();
+        
+        if (screenSpacePanning) {
+          vy.setFromMatrixColumn(camera.matrix, 1);
+        } else {
+          // 向量叉乘
+          vy.crossVectors(camera.up, mx);
+        }
+
+        vy.multiplyScalar(distanceUp);
+        panOffset.copy(vx.add(vy));
+
+        update();
+    }
+
+    function update() {
+        target.add(panOffset);
+        camera.position.add(panOffset);
+        camera.lookAt(target);
+        camera.updateWorldMatrix(true);
+        pvMatrix.multiplyMatrices(
+            camera.projectionMatrix,
+            camera.matrixWorldInverse
+        );
+        render();
+    }
+
+    render();
+
+    function render () {
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      triangle1.init();
+      triangle1.draw();
+      triangle2.init();
+      triangle2.draw();
+
+      triangle3.init();
+      triangle3.draw();
+      triangle4.init();
+      triangle4.draw();
+    }
+
+    function createTrangle (color, modelMatrix) {
+       return new Poly({
+            gl,
+            source: [
+                0,    0.3 , 0,
+                -0.3, -0.3, 0,
+                0.3,  -0.3, 0
+            ],
+            type:'TRIANGLES',
+            attributes:{
+                a_Position:{
+                    size:3,
+                    index:0,
+                }
+            },
+            uniforms:{
+                u_PvMatrix:{
+                    type:'uniformMatrix4fv',
+                    value:pvMatrix.elements
+                },
+                u_Color:{
+                    type:'uniform4fv',
+                    value:color
+                },
+                u_ModelMatrix:{
+                    type:'uniformMatrix4fv',
+                    value:modelMatrix.elements
+                }
+            }
+        })
+    }
+
+  </script>
+</body>
+
+</html>

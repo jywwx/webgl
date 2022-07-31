@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>矩阵平移</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        float sx = 2.0;
+        float sy = 2.0;
+        float sz = 4.0;
+        mat4 mt = mat4(
+            sx, 0.0, 0.0, 0.0,
+            0.0, sy, 0.0, 0.0, 
+            0.0, 0.0, sz, 0.0,
+            0.0, 0.0, 0.0, 1.0
+        );
+        void main() { 
+           gl_Position =  mt * a_Position ;
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        void main() { 
+            gl_FragColor = vec4(1,1,0,1);
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // 顶点数据
+        const vertices = new Float32Array([0,0.1,-0.1,-0.1,0.1,-0.1]);
+
+        // 创建缓冲对象
+        const vertexBuffer = gl.createBuffer();
+
+        // gl绑定缓冲对象
+        gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);
+
+        // 往缓冲区对象写入数据
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        // 将缓冲区对象分配给Arribute变量
+        const gl_position = gl.getAttribLocation(gl.program,'a_Position');
+        gl.vertexAttribPointer(gl_position, 2, gl.FLOAT, false, 0, 0);
+
+        // 开启attribute 批量处理功能
+        gl.enableVertexAttribArray(gl_position);
+
+        gl.drawArrays(gl.TRIANGLES,0,3);
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>欧拉旋转</title>
+
+</head>
+
+<body>
+    <script type="module">
+       import { Group, Matrix4, Object3D, Scene, Vector3, Euler } from 'https://unpkg.com/three/build/three.module.js';
+       
+       const [angX,angY,angZ] = [1,2,3];
+       const P1 = new Vector3(1, 2, 3);
+
+       {
+         const mx = new Matrix4().makeRotationX(angX);
+         const my = new Matrix4().makeRotationY(angY);
+         const mz = new Matrix4().makeRotationZ(angZ);
+         const P2 = P1.clone();
+
+         P2.applyMatrix4(mx.multiply(my).multiply(mx));
+         console.log(P2);
+       }
+
+       {
+         const euler = new Euler(angX,angY,angZ);
+         const m = new Matrix4();
+         m.makeRotationFromEuler(euler);
+         const P2 = P1.clone();
+         P2.applyMatrix4(m);
+         console.log(P2);
+       }
+                    
+    </script>
+</body>
+
+</html>

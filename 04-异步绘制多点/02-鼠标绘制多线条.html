@@ -1,0 +1,121 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标绘制多线条</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        void main() { 
+            gl_Position = a_Position; 
+            gl_PointSize = 20.0; 
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        
+        void main() { 
+            float dist = distance(gl_PointCoord,vec2(0.5,0.5));
+            if (dist < 0.5) {
+                gl_FragColor = vec4(1,1,0,1);
+            } else {
+                discard;
+            }
+        }
+    </script>
+    <script type="module">
+        import { initShaders, getMousePosInwebgl } from '../jsm/utils.js';
+        import Poly from '../jsm/Poly.js';
+        import Sky from '../jsm/Sky.js';
+
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // 顶点数据
+        const ponits = [];
+
+        // 创建多边形 指针
+        let poly = null;
+        // 创建容器对象 保存 鼠标动态创建的多边形
+        const sky = new Sky(gl);
+        
+        // 关闭鼠标右键点击
+        canvas.oncontextmenu = function () { return false };
+         
+
+        canvas.addEventListener('mousedown',(event) => {
+            if (event.button === 2) {
+                popvertice();
+                poly = null;
+            } else {
+                const [x,y] = getMousePosInwebgl(event, canvas);
+                if (poly) {
+                    poly.addVertice([x,y])
+                } else {
+                    createPoly(x,y); 
+                }
+            }
+            render();
+        })
+        
+        
+        canvas.addEventListener('mousemove',(event) => {
+            const [x,y] = getMousePosInwebgl(event,canvas);
+            if (poly) {
+              poly.setVertices(poly.count -1, [x,y]);
+            }
+    
+            render();
+        })
+
+        function popvertice() {
+            poly.popVertice();
+            poly = null;
+        } 
+
+
+        function createPoly (x,y) {
+            poly = new Poly({
+                gl,
+                vertices:[x,y,x,y],
+                types:['POINTS','LINE_STRIP']
+            }); 
+            sky.add(poly);
+        }
+        
+        function render () {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            sky.draw();
+        }
+
+
+    </script>
+</body>
+
+</html>

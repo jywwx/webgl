@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>js旋转图形</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        uniform vec4 u_Translation;
+       // float angle = radians(30.0);
+      //  float sinB = sin(angle);
+       // float cosB = cos(angle);
+       uniform float u_SinB;
+       uniform float u_CosB;
+        void main() { 
+            vec4 text = a_Position + u_Translation; 
+          //  gl_PointSize = 50.0; 
+            gl_Position.x=text.x*u_CosB-text.y*u_SinB;
+            gl_Position.y=text.y*u_CosB+text.x*u_SinB;
+            gl_Position.z=text.z;
+            gl_Position.w=1.0;
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        void main() { 
+            gl_FragColor = vec4(1,1,0,1);
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // 顶点数据
+        const vertices = new Float32Array([0,0.1,-0.1,-0.1,0.1,-0.1]);
+
+        // 创建缓冲对象
+        const vertexBuffer = gl.createBuffer();
+
+        // gl绑定缓冲对象
+        gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer);
+
+        // 往缓冲区对象写入数据
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+        // 将缓冲区对象分配给Arribute变量
+        const gl_position = gl.getAttribLocation(gl.program,'a_Position');
+        gl.vertexAttribPointer(gl_position, 2, gl.FLOAT, false, 0, 0);
+
+
+        // 获取Uniform 变量
+        const u_Translation = gl.getUniformLocation(gl.program,'u_Translation');
+        // 为uniform变量赋值
+        gl.uniform4f(u_Translation,0, -0.5, 0, 0);
+
+
+        // 获取uniform 变量
+
+        const u_SinB = gl.getUniformLocation(gl.program, 'u_SinB');
+        const u_CosB = gl.getUniformLocation(gl.program, 'u_CosB');
+        let angle = 10.0;
+
+        gl.uniform1f(u_SinB,Math.sin(angle));
+        gl.uniform1f(u_CosB,Math.cos(angle));
+
+
+
+        // 开启attribute 批量处理功能
+        gl.enableVertexAttribArray(gl_position);
+
+        gl.drawArrays(gl.TRIANGLES,0,3);
+
+
+        !(function ani() {
+            angle += 10;
+            gl.uniform1f(u_SinB,Math.sin(angle));
+            gl.uniform1f(u_CosB,Math.cos(angle));
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLES,0,3);
+            requestAnimationFrame(ani);
+        })()
+
+
+
+    </script>
+</body>
+
+</html>

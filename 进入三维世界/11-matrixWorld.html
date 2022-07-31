@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>求解世界坐标系</title>
+
+</head>
+
+<body>
+    <script type="module">
+        import { Group, Matrix4, Object3D, Scene, Vector3, } from 'https://unpkg.com/three/build/three.module.js';
+ 
+        // 世界坐标系-宇宙
+        const m1 = new Matrix4();
+        m1.elements = [
+         1, 0, 0, 0,
+         0, 1, 0, 0,
+         0, 0, 1, 0,
+         0, 0, 0, 1,
+        ] 
+ 
+        //银河系 - 本地坐标系
+        const m2 = new Matrix4();
+        m2.elements =[
+         1, 0, 0, 0,
+         0, 1, 0, 0,
+         0,0,1,0,
+         1,2,3,1,
+        ]
+ 
+        // 太阳-本地坐标系
+        const m3 = new Matrix4();
+        m3.elements = [
+         1,0,0,0,
+         0,1,0,0,
+         0,0,1,0,
+         4,5,6,1,
+        ]
+
+        
+
+
+
+
+ 
+        // 创造宇宙
+        const universe = new Scene();
+        universe.applyMatrix4(m1);
+        // 创造银河系
+        const galaxy = new Group();
+        galaxy.applyMatrix4(m2);
+        // 创造太阳系
+        const solar = new Group();
+        solar.applyMatrix4(m3);
+
+           
+        galaxy.add(solar);
+        universe.add(galaxy);
+
+ 
+        solar.updateWorldMatrix(true)
+ 
+        console.log(
+      solar.matrixWorld.elements
+    );
+ 
+     </script>
+
+
+</body>
+
+</html>

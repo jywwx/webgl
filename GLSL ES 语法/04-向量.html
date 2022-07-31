@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绘制多点</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        void main() { 
+            gl_Position = vec4(0,0,0,1); 
+            gl_PointSize = 512.0; 
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        vec3 v3 = vec3(2,3,4);
+        vec2 v2 = vec2(v3);
+        vec4 p = vec4(1,2,3,4);
+        //vec4 v4 = vec4(p.x,0,0,0);
+        //vec4 v4 = vec4(p.r,0,0,0);
+        //vec4 v4 = vec4(p.s,0,0,0);
+        //vec4 v4 = vec4(p.stpq);
+        //vec4 v4 = vec4(p.rgba);
+        //vec4 v4 = vec4(p.xyzw);
+        //vec4 v4 = vec4(p[0],p[1],0,0);
+       // vec4 v4 = vec4(0,0,0,1);
+        //v4.xy = vec2(2,1);
+        void main() { 
+            gl_FragColor =v4 / 255.0;
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        gl.drawArrays(gl.POINTS,0,1);
+          
+        // 像素容器
+        const pixel = new Uint8Array(4);
+        gl.readPixels(
+            canvas.width / 2,
+            canvas.height / 2,
+            1,1,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            pixel,
+        )
+
+        console.log(pixel)
+
+    </script>
+</body>
+
+</html>

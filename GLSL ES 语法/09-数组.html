@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>绘制多点</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        void main() { 
+            gl_Position = vec4(0,0,0,1); 
+            gl_PointSize = 512.0; 
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        const int size = 2;
+        vec4 vs[size];
+
+        void main() {  
+            vs[0] = vec4(1,2,3,4);
+            vs[1] = vec4(5,6,7,8);
+            gl_FragColor = vs[0]/255.0;
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        gl.drawArrays(gl.POINTS,0,1);
+          
+        // 像素容器
+        const pixel = new Uint8Array(4);
+        gl.readPixels(
+            canvas.width / 2,
+            canvas.height / 2,
+            1,1,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            pixel,
+        )
+
+        console.log(pixel)
+
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,76 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>独立三角形拼矩形</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        void main() { 
+            gl_Position = a_Position; 
+            gl_PointSize = 20.0; 
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        void main() { 
+            gl_FragColor = vec4(1,1,0,1);
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        import  Poly  from '../jsm/Poly.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // 顶点数据
+        const ponits = [0,0.2];
+
+        const poly = new Poly({gl, vertices:ponits})
+
+        poly.draw(['POINTS']);
+
+
+        /// 一秒钟之后 向顶点数据添加一个点 修复缓冲区数据 然后清理画布 重新绘制
+        setTimeout(()=> {
+            poly.addVertice([-0.2,-0.1])
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            poly.draw(['POINTS']);
+        },1000)
+
+        // 两秒钟之后 清理画布 绘制顶点 绘制线条
+
+        setTimeout(() => {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            poly.draw(['POINTS','LINE_STRIP']);
+        },2000)
+
+    </script>
+</body>
+
+</html>

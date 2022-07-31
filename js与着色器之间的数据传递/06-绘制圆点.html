@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>画一个点</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <!--定点着色器-->
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position; 
+        attribute float a_PonitSize;
+        void main() { 
+            gl_Position = a_Position; 
+            gl_PointSize = a_PonitSize; 
+        }
+    </script>
+    <!--片元着色器-->
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform vec4 u_glFragColor;
+        
+        void main() { 
+            float dist = distance(gl_PointCoord,vec2(0.5,0.5));
+            if (dist < 0.5) {
+                gl_FragColor = u_glFragColor;
+            } else {
+                discard;
+            }
+        }
+    </script>
+    <script type="module">
+        import { initShaders } from '../jsm/utils.js';
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        initShaders(gl, vsSource, fsSource);
+        // 通过程序对象获取 attribute 变量
+        const a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+        const a_PointSize = gl.getAttribLocation(gl.program, 'a_PonitSize');
+        const u_glFragColor = gl.getUniformLocation(gl.program,'u_glFragColor');
+
+        // js控制点的大小
+
+       // gl.vertexAttrib1f(a_PointSize,100.0)
+        //刷底色
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        const a_Points=[];
+
+        function render () {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            a_Points.forEach(({x,y,size,color:{r,g,b,a}}) => {
+               gl.vertexAttrib2f(a_Position,x,y);  
+               gl.vertexAttrib1f(a_PointSize,size + 10);
+               const colorArr = new Float32Array([r,g,b,a]);
+               gl.uniform4fv(u_glFragColor,colorArr);
+               gl.drawArrays(gl.POINTS,0,1);
+            })
+        }
+
+
+        // 鼠标点击事件
+        canvas.addEventListener('click',(event) => {
+            const {clientX,clientY} = event;
+            const {top,right,bottom,left} = canvas.getBoundingClientRect();
+            const [cssX,cssY] = [clientX-left,clientY-top];
+            const [halfWidth,harfHeight] = [canvas.width/2,canvas.height/2];
+            const [xBaseCenter,yBaseCenter] = [cssX-halfWidth,cssY-harfHeight];
+            const yBaseCenterTop = -yBaseCenter;
+            const [x,y] = [xBaseCenter/halfWidth,yBaseCenterTop/harfHeight];
+            a_Points.push({x,y,size:Math.random() * 10,color:{r:Math.random(),g:Math.random(),b:1,a:1}}); 
+            render();
+        })
+    </script>
+</body>
+
+</html>

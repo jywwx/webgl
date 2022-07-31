@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>刷底色</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #canvas {
+           background: url('../image/sky.jsg');
+           background-size: cover;
+           background-position: right bottom;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const gl = canvas.getContext("webgl");
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
+        //正则获取css 的颜色值
+        const rgbaCss = 'RGBA(0,100,0,1)';
+        const reg = RegExp(/\((.*)\)/);
+        const rgba = reg.exec(rgbaCss)[1].split(',').map(item => parseInt(item));
+        console.log(reg.exec(rgbaCss)[1], "regddd")
+        gl.clearColor(rgba[0] / 255, rgba[1] / 255, rgba[2] / 255, rgba[3]);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+    </script>
+</body>
+
+</html>

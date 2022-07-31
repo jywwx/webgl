@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标绘制多线条</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        #canvas {
+            background-color: antiquewhite;
+            background: url("../image/sky.jpg");
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Attr; 
+        varying float v_Alpha;
+        void main() { 
+            gl_Position = vec4(a_Attr.x, a_Attr.y, 0, 1); 
+            gl_PointSize = a_Attr.z; 
+            v_Alpha = a_Attr.w;
+        }
+    </script>
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        varying float v_Alpha;
+        
+        void main() { 
+            float dist = distance(gl_PointCoord,vec2(0.5,0.5));
+            if (dist < 0.5) {
+                gl_FragColor = vec4(0.87, 0.91, 1, v_Alpha);
+            } else {
+                discard;
+            }
+        }
+    </script>
+    <script type="module">
+        import { initShaders, getMousePosInwebgl, glToCssPos  } from '../jsm/utils.js';
+        import Poly from '../jsm/Poly.js';
+        import Sky from '../jsm/Sky.js';
+        import Compose from '../jsm/Compose.js';
+        import Track from '../jsm/Track.js';
+
+        const canvas = document.querySelector("#canvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const vsSource = document.querySelector("#vertexShader").innerText;
+        const fsSource = document.querySelector("#fragmentShader").innerText;
+        const gl = canvas.getContext("webgl");
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        
+        initShaders(gl, vsSource, fsSource);
+       
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        
+        // 顶点数据
+        const ponits = [];
+
+
+        // 创建容器对象 保存 鼠标动态创建的多边形
+        const sky = new Sky(gl);
+
+        // 创建合成对象
+        const compose = new Compose();
+
+        // 创建多边形 指针
+        let poly = null;
+        //鼠标划上的点
+        let point =  null;
+
+        
+        // 关闭鼠标右键点击
+        canvas.oncontextmenu = function () { return false };
+         
+
+        canvas.addEventListener('mousedown',(event) => {
+            if (event.button === 2) {
+                popvertice();
+                poly = null;
+            } else {
+                const [x,y] = getMousePosInwebgl(event, canvas);
+                if (poly) {
+                    addvertice(x,y);
+                } else {
+                    createPoly(x,y); 
+                }
+            }
+            render();
+        })
+        
+        
+        canvas.addEventListener('mousemove',(event) => {
+            const [x,y] = getMousePosInwebgl(event,canvas);
+            point = hoverPoint(x,y);
+            canvas.style.cursor = point ? 'pointer' : 'default'; 
+            if (poly) {
+             const obj = poly.geoData[poly.geoData.length - 1];
+             obj.x = x;
+             obj.y = y;
+            }
+        })
+        
+         !(function ani() {
+           compose.update(new Date());
+           sky.updateVertices(['x', 'y', 'pointSize', 'alpha']);
+           render();
+           requestAnimationFrame(ani)
+         })()
+
+        function popvertice() {
+           poly.geoData.pop();
+           compose.children.pop();
+           poly = null;
+        } 
+
+
+        function createPoly (x,y) {
+            let o1 = point ? point : { x, y, pointSize: random(), alpha: 1 };
+            let o2 = {x, y, pointSize:random(), alpha:1}
+            poly = new Poly({
+                gl,
+                size:4,
+                attrName:'a_Attr',
+                geoData:[ o1, o2],
+                types:['POINTS','LINE_STRIP']
+            }); 
+            sky.add(poly);
+            crtTrack(o1);
+            crtTrack(o2);
+        }
+        
+        function crtTrack(obj) {
+            const { pointSize } = obj;
+            const track = new Track(obj);
+            track.start = new Date();
+            track.timeLen = 2000;
+            track.loop = true;   
+            track.keyMap = new Map([
+                [
+                    "pointSize",
+                    [
+                        [ 500, pointSize ],
+                        [ 1000, 0 ],
+                        [ 1500, pointSize ],
+                    ]
+                ],
+                [
+                    "alpha",
+                    [
+                        [ 500, 1 ],
+                        [ 1000, 0 ],
+                        [ 1500, 1 ],
+                    ]
+                ]
+            ]);
+            compose.add(track);
+        }
+        
+        function random () {
+            return Math.random()* 8 + 3;
+        }
+
+        function addvertice(x, y) {
+            const { geoData } = poly;
+            if (point) {
+                geoData[geoData.length -1] = point;
+            }
+            let obj = { x, y, ponitSize:random(), alpha:1 };
+            geoData.push(obj);
+            crtTrack(obj);
+        }
+
+        function render () {
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            sky.draw();
+        }
+
+        function hoverPoint (mx,my) {
+            for ( let { geoData } of sky.children ) {
+              for (let obj of geoData ) {
+                 if (poly && obj === poly.geoData[poly.geoData.length -1]) {
+                    continue
+                 }
+                 const delta = {
+                    x:mx-obj.x,
+                    y:my-obj.x
+                 }
+                 const { x , y } = glToCssPos(delta,canvas);
+                 const dist = x*x + y*y;
+                 if (dist < 100) {
+                   return obj;
+                 }
+              }
+            }
+            return null;
+        }
+
+
+    </script>
+</body>
+
+</html>
