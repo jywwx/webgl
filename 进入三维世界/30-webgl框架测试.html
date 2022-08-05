@@ -26,8 +26,8 @@
         precision mediump float;
         uniform float u_Time;
         void main() {
-            float r = (sin(u_Time/200) + 1.0)/2.0;
-            gl_FragColor = vec4(r,0.7,0.4,1.0);
+          float r=(sin(u_Time/200.0)+1.0)/2.0;
+          gl_FragColor=vec4(r,0.7,0.4,1);
         }
     </script>
 
@@ -97,7 +97,7 @@
                 data:{
                     u_Time:{
                         value:0,
-                        type:'uinform1f'
+                        type:'uniform1f'
                     },
                     u_PvMatrix:{
                         value:new Matrix4().elements,
@@ -135,7 +135,7 @@
         image.onload = function () {
             const vs = document.getElementById('textureVertexShader').innerText;
             const fs = document.getElementById('textureFragmentShader').innerText;
-            const program = createProgram(gl,fs,vs);
+            const program = createProgram(gl,vs,fs);
             // 材质
             const mat = new Mat({
                 program,
@@ -158,7 +158,7 @@
             // 几何体
             const geo = new Geo({
                 data:{
-                    a_Postiton:{
+                    a_Position:{
                         array: new Float32Array([
                             0.5,0.5,
                             -0.5,0.5,
