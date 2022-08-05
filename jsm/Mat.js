@@ -15,7 +15,6 @@ export default class Mat{
       obj.needUpdate=true
     }
   }
-  
   update(gl) {
     this.updateData(gl)
     this.updateMaps(gl)
@@ -37,51 +36,51 @@ export default class Mat{
       if(!map.needUpdate){return}
       map.needUpdate = false
       const {
-            format = gl.RGB,
-            image,
-            wrapS,
-            wrapT,
-            magFilter,
-            minFilter,
-            location,
-        } = map
+          format = gl.RGB,
+          image,
+          wrapS,
+          wrapT,
+          magFilter,
+          minFilter,
+          location,
+      } = map
 
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)
-        gl.activeTexture(gl[`TEXTURE${ind}`])
-        const texture = gl.createTexture()
-        gl.bindTexture(gl.TEXTURE_2D, texture)
-        gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            format,
-            format,
-            gl.UNSIGNED_BYTE,
-            image
-        )
-        wrapS&&gl.texParameteri(
-            gl.TEXTURE_2D,
-            gl.TEXTURE_WRAP_S,
-            wrapS
-        )
-        wrapT&&gl.texParameteri(
-            gl.TEXTURE_2D,
-            gl.TEXTURE_WRAP_T,
-            wrapT
-        )
-        magFilter&&gl.texParameteri(
-            gl.TEXTURE_2D,
-            gl.TEXTURE_MAG_FILTER,
-            magFilter
-        )
-        if (!minFilter || minFilter > 9729) {
-            gl.generateMipmap(gl.TEXTURE_2D)
-        }
-        minFilter&&gl.texParameteri(
-            gl.TEXTURE_2D,
-            gl.TEXTURE_MIN_FILTER,
-            minFilter
-        )
-        gl.uniform1i(location, ind)
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1)
+      gl.activeTexture(gl[`TEXTURE${ind}`])
+      const texture = gl.createTexture()
+      gl.bindTexture(gl.TEXTURE_2D, texture)
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        format,
+        format,
+        gl.UNSIGNED_BYTE,
+        image
+      )
+      wrapS&&gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_WRAP_S,
+        wrapS
+      )
+      wrapT&&gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_WRAP_T,
+        wrapT
+      )
+      magFilter&&gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MAG_FILTER,
+        magFilter
+      )
+      if (!minFilter || minFilter > 9729) {
+          gl.generateMipmap(gl.TEXTURE_2D)
+      }
+      minFilter&&gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        minFilter
+      )
+      gl.uniform1i(location, ind)
     })
   }
   setData(key,val) {
