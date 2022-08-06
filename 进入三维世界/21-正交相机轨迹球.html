@@ -148,9 +148,7 @@
       }
       dragStart.copy(dragEnd)
     })
-    canvas.addEventListener('pointerup', (event) => {
-      state = 'none'
-    })
+    canvas.addEventListener('pointerup', (event) => { state = 'none' })
 
     //滚轮事件
     canvas.addEventListener('wheel', handleMouseWheel)
@@ -258,10 +256,7 @@
       //更新投影视图矩阵
       camera.lookAt(target)
       camera.updateMatrixWorld(true)
-      pvMatrix.multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse,
-      )
+      pvMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
 
       //重置旋转量和平移量
       quaternion.setFromRotationMatrix(new Matrix4())
