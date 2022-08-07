@@ -84,10 +84,7 @@
 
 
     const pvMatrix = new Matrix4().
-    multiplyMatrices(
-        camera.projectionMatrix,
-        camera.matrixWorldInverse
-    )
+    multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse)
 
 
     const triangle1 = createTrangle(

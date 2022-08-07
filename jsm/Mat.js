@@ -11,6 +11,7 @@ export default class Mat{
   init(gl){
     const { program, data, maps } = this
     for (let [key, obj] of [...Object.entries(data), ...Object.entries(maps)]) {
+      console.log(key,"ee")
       obj.location=gl.getUniformLocation(program, key)
       obj.needUpdate=true
     }
