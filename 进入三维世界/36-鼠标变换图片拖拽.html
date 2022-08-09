@@ -38,7 +38,7 @@
         varying vec2 v_Pin;
         void main () {
             gl_Position = u_PvMatrix * u_ModelMatrix * a_Position;
-            v_Pin = a_Pin；
+            v_Pin = a_Pin;
         }
     </script>
 
@@ -79,7 +79,7 @@
         camera.lookAt(tartget);
         camera.updateMatrixWorld();
 
-        const pvMatrix = camera.projection.clone().multiply(camera.matrixWorldInverse);
+        const pvMatrix = camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
 
 
         /*计算图片顶点*/
@@ -109,7 +109,7 @@
 
         // 拖拽起始位 与结束位 (世界坐标系)
         const dragStart = new Vector3();
-        const endStart = new Vector3();
+        const dragEnd = new Vector3();
 
 
         // 位移量
@@ -178,7 +178,7 @@
                         type:'uniformMatrix4fv'
                     },
                     u_ModelMatrix:{
-                        value:new Matrix4fv.elements,
+                        value:new Matrix4().elements,
                         type:'uniformMatrix4fv'
                     }
                 },
@@ -212,15 +212,64 @@
         }
 
 
+        // 鼠标按下
+        canvas.addEventListener('mousedown',(event) => {
+            const mp = worldPos(event);
+            if (isImg(mp)) {
+              state = 'drag';
+              dragStart.copy(mp);
+            } 
+        })
+
+        // 鼠标移动
+        canvas.addEventListener('mousemove',(event) => {
+            const mp = worldPos(event);
+            if (state === 'none') {
+               let cursorState = 'none';
+               if (isImg(mp)) {
+                cursorState = 'drag'
+               }
+               canvas.style.cursor = cursorMap.get(cursorState);
+               return;
+            }
+            dragEnd.copy(mp);
+            change = true;
+
+            switch (state) {
+                case 'drag':
+                    drag();
+                    break
+            }
+
+            render()
+        })
+        
+        // 鼠标抬起
+        canvas.addEventListener('mouseup',(event) => {
+            if (state !== 'none') {
+                state = 'none';
+                if (change) {
+                  change = false;
+                  offset.set(0,0);
+                  canvas.style.cursor = 'default';
+                  formatVertices()
+                }
+            }
+        })
+
+        // 拖拽
+        function drag() {
+          offset.subVectors(dragEnd, dragStart)
+        }
         // 二次变换格式化顶点数据
         function formatVertices () {
             for (let i =0 ; i < vertices.length; i+= 2) {
-               const p = new Vector3(vertices[i],vertices[i+1],0).applyMatrix4(pvMatrix);
+               const p = new Vector3(vertices[i],vertices[i+1],0).applyMatrix4(mn);
                vertices[i] = p.x;
                vertices[i + 1] = p.y  
             };
             geo.setData('a_Position',{ array: vertices });
-            geoOut.setData('a_Position',{array:verticesOut()})
+            geoOut.setData('a_Position',{array:getVerticesOut()})
         }
 
         // 判断鼠标是否在图像中
@@ -230,23 +279,34 @@
         }
 
         // 鼠标在canvas 画布中的位置转世界位
-        function worldPos({clinetX,clientY}) {
+        function worldPos({clientX,clientY}) {
            const [hw, hh] = [canvas.width / 2, canvas.height / 2];
            // 裁剪空间
-           const cp = new Vector3((clinetX-hw) / hw, -(clientY - hh)/ hh, 0);
+           const cp = new Vector3((clientX-hw) / hw, -(clientY - hh)/ hh, 0);
            // 鼠标在世界坐标系中的位置
            const p  = cp.applyMatrix4(pvMatrix.clone().invert());
-           return new Vector2(p.x, p.y, 0);
+           return new Vector2(p.x, p.y);
         }
 
         // 根据位移量 计算模型矩阵
         function getModelMatrix() {
             const {x:px, y:py} = offset;
-            
+            const moveMatrix = new Matrix4().set(
+                1, 0, 0, px,
+                0, 1, 0, py,
+                0, 0, 1, 0,
+                0, 0, 0, 1,                
+            )
+            return mb.clone().multiply(moveMatrix).multiply(mi);
         }
 
 
-
+        function render () {
+            const { elements } = mn.copy(getModelMatrix());
+            mat.setData('u_ModelMatrix',{ value: elements });
+            matOut.setData('u_ModelMatrix',{ value:elements });
+            scene.draw();
+        }
 
 
 
