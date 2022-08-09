@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鼠标变换图片前期准备</title>
+    <title>鼠标变换图片拖拽</title>
     <style>
         body {
             margin:0;
@@ -38,20 +38,21 @@
         varying vec2 v_Pin;
         void main () {
             gl_Position = u_PvMatrix * u_ModelMatrix * a_Position;
-            v_Pin = a_Pin;
+            v_Pin = a_Pin；
         }
     </script>
+
 
     <script id="textureFragmentShader" type="x-shader/x-fragment">
         precision mediump float;
         uniform sampler2D u_Sampler;
         varying vec2 v_Pin;
         void main () {
-            gl_FragColor = texture2D(u_Sampler, v_Pin);
+            gl_FragColor = texture2D(u_Sampler,v_Pin);
         }
     </script>
     <script type="module">
-        import { createProgram } from '../jsm/utils.js';
+        import { createProgram, inTriangle } from '../jsm/utils.js';
         import { Matrix4, OrthographicCamera, Vector3, Vector2 } from 'https://unpkg.com/three/build/three.module.js';
         import OrbitControls from '../jsm/Mat.js';
         import Geo from '../jsm/Geo.js';
@@ -62,6 +63,7 @@
         const canvas = document.getElementById('canvas');
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
+
         const gl = canvas.getContext('webgl');
         gl.clearColor(0.0,0.0,0.0,1.0);
 
@@ -71,72 +73,103 @@
         const [left,right,top,bottom,near,far] = [-halfW,halfW,halfH,-halfH,1,8];
 
         const eye = new Vector3(0,0,2);
-        const target =new Vector3(0,0,0);
+        const tartget = new Vector3(0,0,0);
         const camera = new OrthographicCamera(left,right,top,bottom,near,far);
         camera.position.copy(eye);
-        camera.lookAt(target);
+        camera.lookAt(tartget);
         camera.updateMatrixWorld();
-        const pvMatrix = camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
-        
+
+        const pvMatrix = camera.projection.clone().multiply(camera.matrixWorldInverse);
+
 
         /*计算图片顶点*/
-        const [w, h] = [0.6, 0.6];
-        const [hw,hh] = [w/2, h/2];
+        const [w,h] =[0.6,0.6];
+        const [hw,hh] = [w/2,h/2];
 
+        // 图片顶点
         const vertices = new Float32Array([
             -hw,hh,
             -hw,-hh,
             hw,hh,
             hw,-hh
         ]);
-        // 图片外框顶点数据
         const verticesOut = getVerticesOut();
+        // 变换状态
+        let state = 'none';
+        let change = false;
+
+        // 变换状态鼠标的样式对应关系
+        const cursorMap = new Map([
+            ['drag','move'],
+            ['roater','alias'],
+            ['scale','pointer'],
+            ['none','default']
+        ]);
+
+
+        // 拖拽起始位 与结束位 (世界坐标系)
+        const dragStart = new Vector3();
+        const endStart = new Vector3();
+
+
+        // 位移量
+        let offset = new Vector2();
+
+        // 饭盒本地矩阵 
+        const mi = new Matrix4();
+        // 冰箱本地矩阵
+        const mb = new Matrix4();
+        // 模型矩阵
+        const mn =  new Matrix4();
 
 
         const scene = new Scene({gl});
+
+
         let matOut = null;
         let geoOut = null;
-        {
-           const vs = document.getElementById('solidVertexShader').innerText;
-           const fs = document.getElementById('solidFragmentShader').innerText;
+        
+        // 图片外框
+        const vs = document.getElementById('solidVertexShader').innerText;
+        const fs = document.getElementById('solidFragmentShader').innerText;
+        const program  = createProgram(gl,vs,fs);
 
-           const program = createProgram(gl,vs,fs);
+        matOut = new Mat({
+            program,
+            data:{
+              u_PvMatrix:{
+                value:pvMatrix.elements,
+                type:'uniformMatrix4fv'
+              },
+              u_ModelMatrix:{
+                value: new Matrix4().elements,
+                type:'uniformMatrix4fv'
+              }    
+            },
+            mode:['LINE_LOOP','POINTS']
+        })
 
-           matOut = new Mat({
-             program,
-             data:{
-                u_PvMatrix:{
-                    value:pvMatrix.elements,
-                    type:'uniformMatrix4fv'
-                },
-                u_ModelMatrix:{
-                    value:new Matrix4().elements,
-                    type:'uniformMatrix4fv'
-                }
-             },
-             mode:['LINE_LOOP','POINTS']
-           });
-           geoOut = new Geo({
-             data:{
+        geoOut = new Geo({
+            data:{
                 a_Position:{
-                    array:verticesOut,
+                    array: verticesOut,
                     size:2
                 }
-             },
-           });
-           const obj = new Obj3D({geo:geoOut,mat:matOut});
-           scene.add(obj);
-        }
-        
+            }
+        })
+
+        const obj = new Obj3D({geo:geoOut,mat:matOut});
+        scene.add(obj);
+
+
         let mat = null;
         let geo = null;
         const image = new Image();
-        image.src = '../image/erha.jpg';
+        image.src ="../image/erha.jpg";
         image.onload = function () {
             const vs = document.getElementById('textureVertexShader').innerText;
             const fs = document.getElementById('textureFragmentShader').innerText;
             const program = createProgram(gl,vs,fs);
-
             mat = new Mat({
                 program,
                 data:{
@@ -145,7 +178,7 @@
                         type:'uniformMatrix4fv'
                     },
                     u_ModelMatrix:{
-                        value:new Matrix4().elements,
+                        value:new Matrix4fv.elements,
                         type:'uniformMatrix4fv'
                     }
                 },
@@ -164,29 +197,77 @@
                     },
                     a_Pin:{
                         array:new Float32Array([
-                         0, 1,
-                         0, 0,
-                         1, 1,
-                         1, 0,
+                            0,1,
+                            0,0,
+                            1,1,
+                            1,0
                         ]),
                         size:2
                     }
                 }
             });
-
-            const obj = new Obj3D({geo,mat});
+            const obj = new Obj3D({mat,geo});
             scene.unshift(obj);
-            scene.draw()
+            scene.draw();
         }
+
+
+        // 二次变换格式化顶点数据
+        function formatVertices () {
+            for (let i =0 ; i < vertices.length; i+= 2) {
+               const p = new Vector3(vertices[i],vertices[i+1],0).applyMatrix4(pvMatrix);
+               vertices[i] = p.x;
+               vertices[i + 1] = p.y  
+            };
+            geo.setData('a_Position',{ array: vertices });
+            geoOut.setData('a_Position',{array:verticesOut()})
+        }
+
+        // 判断鼠标是否在图像中
+        function isImg (p) {
+          return inTriangle(p, [{ x: vertices[0], y: vertices[1] },{ x: vertices[2], y: vertices[3] },{ x: vertices[4], y: vertices[5] }])
+          || inTriangle(p,[{ x: vertices[4], y: vertices[5] },{ x: vertices[2], y: vertices[3] },{ x: vertices[6], y: vertices[7] },])
+        }
+
+        // 鼠标在canvas 画布中的位置转世界位
+        function worldPos({clinetX,clientY}) {
+           const [hw, hh] = [canvas.width / 2, canvas.height / 2];
+           // 裁剪空间
+           const cp = new Vector3((clinetX-hw) / hw, -(clientY - hh)/ hh, 0);
+           // 鼠标在世界坐标系中的位置
+           const p  = cp.applyMatrix4(pvMatrix.clone().invert());
+           return new Vector2(p.x, p.y, 0);
+        }
+
+        // 根据位移量 计算模型矩阵
+        function getModelMatrix() {
+            const {x:px, y:py} = offset;
+            
+        }
+
+
+
+
+
+
 
         function getVerticesOut() {
-          return new Float32Array([
-            vertices[0], vertices[1],
-            vertices[2], vertices[3],
-            vertices[6], vertices[7],
-            vertices[4], vertices[5],
-          ]) 
+           return new Float32Array([
+             vertices[0],vertices[1],
+             vertices[2],vertices[3],
+             vertices[6],vertices[7],
+             vertices[4],vertices[5]
+           ])
         }
+
+
+ 
+
+
+
+
+
+        
     </script>
 </body>
 </html>

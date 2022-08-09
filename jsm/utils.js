@@ -68,4 +68,22 @@
         })
     }
 
-    export { initShaders, getMousePosInwebgl, glToCssPos, imgPromise, createProgram }
+    const inTriangle = (p0,triangle) => {
+        let bool = true;
+        for (let i = 0; i< 3; i ++) {
+           const j = (i + 1) % 3;
+           const [p1,p2] = [triangle[i],triangle[j]];
+           if (cross([p0,p1,p2]) < 0) {
+              bool = false;
+              break;
+           }
+        }
+        return bool;
+    }
+
+    const cross = ([p0,p1,p2]) => {
+       const [ax,ay,bx,by] = [p1.x - p0.x, p1.y-p0.y, p2.x-p0.x, p2.y-p0.y];
+       return ax*by - bx*ay;
+    }
+
+    export { initShaders, getMousePosInwebgl, glToCssPos, imgPromise, createProgram, inTriangle }
