@@ -179,7 +179,7 @@
 
         // 鼠标拖拽
         let dragStart = new Vector2();
-        let dradEnd = new Vector2();
+        let dragEnd = new Vector2();
         let change = false;
         let state = 'none';
         let offset = new Vector2();
@@ -195,7 +195,8 @@
 
         canvas.addEventListener('mousedown',(event) => {
            const mp = worldPos(event);
-           if (isTnImg(mp)) {
+           console.log(mp,isInImg(mp),"isInImg(mp)")
+           if (isInImg(mp)) {
               state = 'drag';
               dragStart.copy(mp);
            }
@@ -204,10 +205,17 @@
         canvas.addEventListener('mousemove',(evemt) => {
            const mp = worldPos(event);
            if (state === 'none') {
-               let cursorState = 'default'
-              isInImg(mp) && (cursorState = 'drag');
-              canvas.style.cursor = cursorMap.get(cursorState)
+              canvas.style.cursor =  isInImg(mp) ? 'move':'default';
+              return;
            }
+           dragEnd.copy(mp);
+           change = true;
+           switch (state) {
+             case 'drag':
+               drag(); 
+               break;
+           }
+           render();
         })
 
         canvas.addEventListener('mouseup',(event) => {
@@ -233,7 +241,9 @@
 
         
         // 拖拽
-
+        function drag() {
+            offset.subVectors(dragEnd,dragStart);
+        }
         // 顶点格式化数据
         function formatVertices() {
             for(let i=0; i< vertices.length; i+= 2) {
@@ -246,7 +256,7 @@
         }
 
         // 判断鼠标是否在图片中
-        function isTnImg(p){
+        function isInImg(p){
            return inTriangle(p,[{x:vertices[0],y:vertices[1]},{x:vertices[2],y:vertices[3]},{x:vertices[4],y:vertices[5]}])
            || inTriangle(p,[{x:vertices[4],y:vertices[5]},{x:vertices[2],y:vertices[3]},{x:vertices[6],y:vertices[7]}])
         }
@@ -255,28 +265,29 @@
         function worldPos ({clientX,clientY}) {
           const [hh,hw] = [canvas.height /2, canvas.width / 2];
           // 裁剪空间位
-          const cp = new Vector3((clientX-hw) / hw, -((clientY - hw) / hw),0);
-          const p = cm.applyMatrix4(pvMatrix.clone().invert());
+          const cp = new Vector3((clientX-hw) / hw, -((clientY - hh) / hh),0);
+          const p = cp.applyMatrix4(pvMatrix.clone().invert());
           return new Vector2(p.x,p.y);
         }
 
         // 获取矩阵模型
         function getModelMatrix() {
-            const { x:px, y:py } = offset;
-            const moveMatrix = new Matrix4f().set([
-                1,0,0,px,
-                0,1,0,py,
+            const {x, y} = offset;
+            const moveMatrix = new Matrix4().set(
+                1,0,0,x,
+                0,1,0,y,
                 0,0,1,0,
                 0,0,0,1
-            ]);
-            return mb.clone().multiply(moveMatrix).multiply(mi);
+            );
+            return mb.clone().multiply(moveMatrix).multiply(mi)
         }
 
 
         function render () {
-            const { elements } = getModelMatrix();
-            matOut.setData('u_ModelMatrix',{value: elements});
-            mat.setData('u_ModelMatrix',{value: elements})
+            const { elements } = mn.copy(getModelMatrix())
+            mat.setData('u_ModelMatrix', {value: elements})
+            matOut.setData('u_ModelMatrix', {value: elements})
+            scene.draw()
         }
 
     </script>
