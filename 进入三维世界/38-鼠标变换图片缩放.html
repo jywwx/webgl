@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鼠标变换图片旋转</title>
+    <title>鼠标变换图片缩放</title>
     <style>
         body {
             margin:0;
@@ -197,7 +197,7 @@
         // 拖拽起始位到基点的向量 拖拽结束位置到基点的向量 相对于原点的 旋转量
         let angle = 0;
         // 每次旋转固定角度
-        let angleSpace = 0;
+        let angleSpace = Math.PI / 12;
 
         // 选中节点inde
         let nodeInd = 0;
@@ -207,8 +207,9 @@
         const oppsite = new Map([[0,6],[4,2],[6,0],[2,4]]);
 
 
-
-
+        //缩放
+        // 缩放的量
+        const zoom = new Vector2(1,1);
 
         // 变换状态与cursor 状态的对应关系
         const cursorMap = new Map([
@@ -237,7 +238,7 @@
            }
         })
 
-        canvas.addEventListener('mousemove',(evemt) => {
+        canvas.addEventListener('mousemove',(event) => {
            const mp = worldPos(event);
            if (state === 'none') {
                let cursorState = 'none';
@@ -245,7 +246,7 @@
                if (isInImg(mp)) {
                 cursorState = 'drag'
                } else {
-                node ? cursorState = 'roate': cursorState = 'none';
+                cursorState = node ? node.state : 'none';
                }
                canvas.style.cursor = cursorMap.get(cursorState);
                return;
@@ -259,7 +260,9 @@
                 break;
              case 'roate':
                 roate();
-                break;   
+                break;  
+             case 'scale':
+                scale(); 
            } 
            render()
         })
@@ -271,6 +274,7 @@
                 change = false;
                 offset.set(0,0);
                 angle = 0;
+                zoom.set(1,1);
                 canvas.style.cursor = 'default';
                 formatVertices();
               }
@@ -306,8 +310,20 @@
         function roate() {
             const endAng = Math.atan2(end2Orign.y,end2Orign.x);
             angle = endAng - startAng;
-            if (keys.has(16)) {
-              angle = Math.round(angle / angleSpace) * angleSpace;
+            if (!keys.has(16)) {
+               angle = Math.round(angle / angleSpace) * angleSpace;
+            }
+        }
+
+        function scale() {
+           const [sx, sy] = [ end2Orign.x / start2Orign.x,end2Orign.y / start2Orign.y];
+           if (keys.has(16)) {
+            // 自由缩放
+              zoom.set(sx,sy)
+            } else {
+            // 等比缩放
+              const ratio = end2Orign.length() / start2Orign.length();
+              zoom.set(ratio * sx / Math.abs(sx), ratio * sy/ Math.abs(sy));
             }
         }
         
@@ -320,7 +336,7 @@
 
         function getOppo() {
             const pointInd =  oppsite.get(nodeInd);
-           return Vector2(vertices[pointInd], pointInd[pointInd + 1])
+           return new Vector2(vertices[pointInd], pointInd[pointInd + 1])
         }
 
         function getCenter () {
@@ -328,14 +344,18 @@
             const [x2,y2] = [vertices[6],vertices[7]];
             return new Vector2((x1+x2)/2,(y1+y2)/2);
         }
-        
         function selectNode(m) {
             let node = null;
             for (let i =0; i< vertices.length; i+= 2) {
                 const point = new Vector2(vertices[i],vertices[i+ 1]);
                 const len = m.clone().sub(point).length() * canvas.height / 2;
-                if (len < 40) {
-                  node = {state:'roate',index: 1}
+                 
+                if (len < 15) {
+                  node = {state:'scale', index:i};
+                  break;
+                } else if (len < 40) {
+                  node = {state:'roate',index: i}
+                  break;
                 }
             }
             return node;
@@ -380,13 +400,22 @@
             // 旋转矩阵
             const [s,c] = [Math.sin(angle),Math.cos(angle)];
 
+            const {x:sx, y:sy} = zoom;
+            // 缩放矩阵
+            const scaleMatrix = new Matrix4().set(
+                sx,0,0,0,
+                0,sy,0,0,
+                0,0,1,0,
+                0,0,0,1
+            )
+
             const roateMatrix = new Matrix4().set(
                 c,-s,0,0,
                 s,c,0,0,
                 0,0,1,0,
                 0,0,0,1
             )
-            return mb.clone().multiply(moveMatrix).multiply(roateMatrix).multiply(mi);
+            return mb.clone().multiply(moveMatrix).multiply(roateMatrix).multiply(scaleMatrix).multiply(mi);
         }
 
 
