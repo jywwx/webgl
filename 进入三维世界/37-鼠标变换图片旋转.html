@@ -179,10 +179,36 @@
 
         // 鼠标拖拽
         let dragStart = new Vector2();
-        let dradEnd = new Vector2();
+        let dragEnd = new Vector2();
         let change = false;
         let state = 'none';
         let offset = new Vector2();
+
+        // 鼠标旋转
+        // 变换基点
+        const orign = new Vector2();
+        // 拖拽起始位 到基点的向量
+        const start2Orign = new Vector2();
+        // 拖拽结束位 到基点的向量
+        const end2Orign = new Vector2();
+        // 拖拽起始位到基点的向量 相对于坐标原点的 旋转量
+        let startAng = 0;
+
+        // 拖拽起始位到基点的向量 拖拽结束位置到基点的向量 相对于原点的 旋转量
+        let angle = 0;
+        // 每次旋转固定角度
+        let angleSpace = 0;
+
+        // 选中节点inde
+        let nodeInd = 0;
+        // 按键集合
+        const keys = new Set();
+        // 节点对面的点的集合
+        const oppsite = new Map([[0,6],[4,2],[6,0],[2,4]]);
+
+
+
+
 
         // 变换状态与cursor 状态的对应关系
         const cursorMap = new Map([
@@ -195,32 +221,73 @@
 
         canvas.addEventListener('mousedown',(event) => {
            const mp = worldPos(event);
-           if (isTnImg(mp)) {
+           if (isInImg(mp)) {
               state = 'drag';
               dragStart.copy(mp);
+           } else {
+            const node = selectNode(mp);
+            if (node) {
+                state = node.state;
+                nodeInd = node.index;
+                setOrign();
+                dragStart.copy(mp);
+                start2Orign.subVectors(dragStart,orign);
+                startAng = Math.atan2(start2Orign.y,start2Orign.x);
+            }
            }
         })
 
         canvas.addEventListener('mousemove',(evemt) => {
            const mp = worldPos(event);
            if (state === 'none') {
-               let cursorState = 'default'
-              isInImg(mp) && (cursorState = 'drag');
-              canvas.style.cursor = cursorMap.get(cursorState)
+               let cursorState = 'none';
+               const node = selectNode(mp);
+               if (isInImg(mp)) {
+                cursorState = 'drag'
+               } else {
+                node ? cursorState = 'roate': cursorState = 'none';
+               }
+               canvas.style.cursor = cursorMap.get(cursorState);
+               return;
            }
+           dragEnd.copy(mp);
+           end2Orign.subVectors(dragEnd,orign);
+           change = true;
+           switch (state) {
+             case 'drag':
+                drag()
+                break;
+             case 'roate':
+                roate();
+                break;   
+           } 
+           render()
         })
-
+        
         canvas.addEventListener('mouseup',(event) => {
             if (state !== 'none') {
               state = 'none';
               if (change) {
                 change = false;
                 offset.set(0,0);
+                angle = 0;
                 canvas.style.cursor = 'default';
                 formatVertices();
               }
             }
         })
+
+        window.addEventListener('keydown',({keyCode}) => {
+            keys.add(keyCode);
+            state !== 'none' && setOrign();
+        })
+
+        window.addEventListener('keyup',({keyCode}) => {
+            keys.delete(keyCode);
+            state !== 'none' && setOrign();
+        })
+
+
 
         function getVerticesOut () {
             return new Float32Array([
@@ -231,8 +298,48 @@
             ])
         }
 
+
+        function drag () {
+           offset.subVectors(dragEnd,dragStart);
+        }
+
+        function roate() {
+            const endAng = Math.atan2(end2Orign.y,end2Orign.x);
+            angle = endAng - startAng;
+            if (keys.has(16)) {
+              angle = Math.round(angle / angleSpace) * angleSpace;
+            }
+        }
         
-        // 拖拽
+        function setOrign () {
+            const [x,y] = keys.has(18) ? getOppo() : getCenter();
+            orign.set(x,y);
+            mb.makeTranslation(x,y,0);
+            mi.makeTranslation(-x,-y,0);
+        }
+
+        function getOppo() {
+            const pointInd =  oppsite.get(nodeInd);
+           return Vector2(vertices[pointInd], pointInd[pointInd + 1])
+        }
+
+        function getCenter () {
+            const [x1,y1] = [vertices[0],vertices[1]];
+            const [x2,y2] = [vertices[6],vertices[7]];
+            return new Vector2((x1+x2)/2,(y1+y2)/2);
+        }
+        function selectNode(m) {
+            let node = null;
+            for (let i =0; i< vertices.length; i+= 2) {
+                const point = new Vector2(vertices[i],vertices[i+ 1]);
+                const len = m.clone().sub(point).length() * canvas.height / 2;
+                if (len < 40) {
+                  node = {state:'roate',index: 1}
+                }
+            }
+            return node;
+        }
+
 
         // 顶点格式化数据
         function formatVertices() {
@@ -246,7 +353,7 @@
         }
 
         // 判断鼠标是否在图片中
-        function isTnImg(p){
+        function isInImg(p){
            return inTriangle(p,[{x:vertices[0],y:vertices[1]},{x:vertices[2],y:vertices[3]},{x:vertices[4],y:vertices[5]}])
            || inTriangle(p,[{x:vertices[4],y:vertices[5]},{x:vertices[2],y:vertices[3]},{x:vertices[6],y:vertices[7]}])
         }
@@ -255,28 +362,38 @@
         function worldPos ({clientX,clientY}) {
           const [hh,hw] = [canvas.height /2, canvas.width / 2];
           // 裁剪空间位
-          const cp = new Vector3((clientX-hw) / hw, -((clientY - hw) / hw),0);
-          const p = cm.applyMatrix4(pvMatrix.clone().invert());
+          const cp = new Vector3((clientX-hw) / hw, -((clientY - hh) / hh),0);
+          const p = cp.applyMatrix4(pvMatrix.clone().invert());
           return new Vector2(p.x,p.y);
         }
 
         // 获取矩阵模型
         function getModelMatrix() {
             const { x:px, y:py } = offset;
-            const moveMatrix = new Matrix4f().set([
+            const moveMatrix = new Matrix4().set(
                 1,0,0,px,
                 0,1,0,py,
                 0,0,1,0,
                 0,0,0,1
-            ]);
-            return mb.clone().multiply(moveMatrix).multiply(mi);
+            );
+            // 旋转矩阵
+            const [s,c] = [Math.sin(angle),Math.cos(angle)];
+
+            const roateMatrix = new Matrix4().set(
+                c,-s,0,0,
+                s,c,0,0,
+                0,0,1,0,
+                0,0,0,1
+            )
+            return mb.clone().multiply(moveMatrix).multiply(roateMatrix).multiply(mi);
         }
 
 
         function render () {
-            const { elements } = getModelMatrix();
+            const { elements } = mn.copy(getModelMatrix());
             matOut.setData('u_ModelMatrix',{value: elements});
-            mat.setData('u_ModelMatrix',{value: elements})
+            mat.setData('u_ModelMatrix',{value: elements});
+            scene.draw();
         }
 
     </script>
