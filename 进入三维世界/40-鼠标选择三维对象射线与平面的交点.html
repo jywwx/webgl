@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标选择三维对象射线与平面的交点</title>
+</head>
+<body>
+    <script type="module">
+        import { Matrix4, OrthographicCamera, Vector3, Vector2,Plane, Ray } from 'https://unpkg.com/three/build/three.module.js';
+        // 三角形ABC
+        // const A = new Vector3(-6,0,-4);
+        // const B = new Vector3(0,0,4);
+        // const C = new Vector3(6,0,-4);
+        const A = new Vector3(-6,9,-4);
+        const B = new Vector3(0,9,4);
+        const C = new Vector3(6,9,-4);
+        
+        // 视点
+        const E = new Vector3(0, 12, 16);
+        // 鼠标点 
+        const P = new Vector3(0, 3, 4);
+
+
+        {
+            // 三角形ABC 的法线
+            const AB = new Vector3().subVectors(B,A);
+            const BC = new Vector3().subVectors(C,B);
+            // 法线
+            const n = new Vector3().crossVectors(AB,BC).normalize();
+            // 基于视点 和 鼠标点 计算射线的方向 V
+            const v = new Vector3().subVectors(P,E).normalize();
+            
+
+            //根据射线与平面的交点公式求出交点
+            // M = ((A-E) * n / v * n)* v  + E
+            const M = v.clone().multiplyScalar(
+            A.clone().sub(E).dot(n) / v.clone().dot(n)
+            ).add(E)
+
+            console.log(M,"M")
+        }
+
+        {
+            const plane = new Plane().setFromCoplanarPoints(A,B,C);
+
+            // 计算射线
+            /*  方法1
+                const v = new Vector3().subVectors(P,E).normalize();
+                const ray = new Ray(E,v);
+            */
+            // 建立射线的方法二
+            const ray = new Ray(E).lookAt(P);
+
+            const M = new Vector3();
+            ray.intersectPlane(plane,M);  // 射线穿过平面的点
+            console.log(M,"ray.intersectPlane")
+
+        }
+
+    </script>
+</body>
+</html>

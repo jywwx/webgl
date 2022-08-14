@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标选择立方体</title>
+    <style>
+        body {
+            margin:0;
+            overflow:hidden;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script id="vertexShader" type="x-shader/x-vertex">
+        attribute vec4 a_Position;
+        attribute vec4 a_Color;
+        uniform mat4 u_PvMatrix;
+        uniform mat4 u_ModelMatrix;
+        varying vec4 v_Color;
+        void main() {
+            gl_Position = u_PvMatrix * u_ModelMatrix * a_Position;
+            v_Color = a_Color;
+        }
+    </script>
+
+    <script id="fragmentShader" type="x-shader/x-fragment">
+        precision mediump float;
+        uniform float u_Time;
+        varying vec4 v_Color;
+        void main() {
+            float r = (sin(u_Time/200.0) + 1.0) / 2.0;
+            gl_FragColor = vec4(v_Color.r*r,v_Color.g*(1.0-r),v_Color.ba);
+        }
+    </script>
+    <script type="module">
+        import { initShaders, createProgram } from '../jsm/utils.js';
+        import { Matrix4, PerspectiveCamera, Vector3, Vector2, Quaternion, Ray } from 'https://unpkg.com/three/build/three.module.js';
+        import OrbitControls from '../jsm/OrbitControls.js';
+        import Mat from '../jsm/Mat.js';
+        import Geo from '../jsm/Geo.js';
+        import Obj3D from '../jsm/Obj3D.js';
+        import Scene from '../jsm/Scene.js';
+
+        const canvas = document.getElementById('canvas');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const gl = canvas.getContext('webgl');
+
+
+        const vsSource = document.getElementById('vertexShader').innerText;
+        const fsSource = document.getElementById('fragmentShader').innerText;
+
+        const program = createProgram(gl,vsSource,fsSource);
+        gl.clearColor(0,0,0,1);
+        gl.enable(gl.DEPTH_TEST);
+
+        /*透视相机*/
+        const eye = new Vector3(2,3,5);
+        const target = new Vector3(0, 0, 0);
+        const up = new Vector3(0, 1, 0);
+        const [fov,aspect, near,far] = [45, canvas.width/canvas.height, 1, 20]
+
+        const camera = new PerspectiveCamera(fov, aspect, near, far);
+        camera.position.copy(eye);
+
+        const orbit = new OrbitControls({camera, target, dom:canvas});
+        orbit.update();
+
+
+        // 投影视图矩阵
+        const pvMatrix = new Matrix4();
+        let selected = false // 三维对象 立方体被选择的状态
+  
+        // 顶点数据
+        const vertices = new Float32Array([
+            1, 1, 1,
+            -1, 1, 1,
+            -1, -1, 1,
+            1, -1, 1,
+            1, -1, -1,
+            1, 1, -1,
+            -1, 1, -1,
+            -1, -1, -1,
+        ]);
+        // 顶点索引
+        const indexs = new Uint8Array([
+            0, 1, 2, 0, 2, 3,    // front
+            0, 3, 4, 0, 4, 5,    // right
+            0, 5, 6, 0, 6, 1,    // up
+            1, 6, 7, 1, 7, 2,    // left
+            7, 4, 3, 7, 3, 2,    // down
+            4, 7, 6, 4, 6, 5     // back
+        ])
+
+
+
+        canvas.addEventListener('contextmenu',event => event.preventDefault());
+
+        canvas.addEventListener('pointerdown', event => orbit.pointerdown(event));
+
+        canvas.addEventListener('pointermove', event => {
+            orbit.pointermove(event);
+            pvMatrix.copy(orbit.getPvMatrix());
+            selectObj(event);
+        });
+
+        canvas.addEventListener('pointerup', event=> orbit.pointerup(event));
+
+        canvas.addEventListener('wheel', event => orbit.wheel(event));
+
+        const scene = new Scene({gl});
+        const mat = new Mat({
+            program,
+            data:{
+                u_Time:{
+                    value: 0,
+                    type:'uniform1f'
+                },
+                u_PvMatrix:{
+                    value: orbit.getPvMatrix().elements,
+                    type:'uniformMatrix4fv'
+                },
+                u_ModelMatrix:{
+                    value: new Matrix4().elements,
+                    type:'uniformMatrix4fv'
+                }
+            }
+        })
+
+        const geo = new Geo({ 
+            data:{
+                a_Position:{
+                    array:vertices,
+                    size:3
+                },
+                a_Color:{
+                    array:new Float32Array([
+                        1, 0, 0,
+                        0, 1, 0,
+                        0, 0, 1,
+                        1, 1, 0,
+                        0, 1, 1,
+                        1, 0, 1,
+                        1, 1, 1,
+                        0, 0, 0
+                    ]),
+                    size:3
+                },
+            },
+            index:{
+                array:indexs
+            }
+        })
+
+
+        const obj = new Obj3D({mat,geo});
+        scene.add(obj);
+
+
+        function selectObj(event) {
+            const mp = worldPos(event);
+            // 相机的视点 看相 鼠标点的射线
+            const ray = new Ray(camera.position).lookAt(mp);
+            // 选择状态
+            selected = false;
+            for (let i = 0; i < indexs.length; i += 3) {
+              const triangle = [getVectors(indexs[i]),getVectors(indexs[i+1]),getVectors(indexs[i+2])];
+              const interPos = intersectTriangle(ray,triangle);
+              if (interPos) {
+                selected = true;
+                break;
+              }
+            }
+        }
+
+        // 射线与平面的交点 如果在三角形中 返回交点 不在三角形中返回null
+        function intersectTriangle(ray,triangle) {
+          const { origin:E, direction:v } = ray;
+          const [A,B,C] = triangle;
+          // 三角形的法线
+          const AB = new Vector3().subVectors(B,A);
+          const BC = new Vector3().subVectors(C,B);
+          const n = new Vector3().crossVectors(AB,BC);
+
+          //射线和平面的交点M
+          // M = ((A-E)*n / v*n) * v + E;
+          const M = v.clone().multiplyScalar((
+            A.clone().sub(E)).dot(n) / v.clone().dot(n) 
+          ).add(E);
+
+          // 判断交点M 是否在三角形中
+          let bool = true;
+          for (let i = 0; i < 3; i ++) {
+            const j = (i + 1) % 3;
+            const [a, b] = [triangle[i], triangle[j]];
+            const ma = a.clone().sub(M);
+            const ab = b.clone().sub(a);
+            const d = ma.clone().cross(ab);
+            const len = d.dot(n);
+            if (len < 0) {
+                bool = false;
+                break;
+            }
+          }
+          return bool ? M : null;
+        }
+
+        function getVectors(j) {
+            const i = j * 3;
+            return new Vector3(vertices[i],vertices[i+1],vertices[i+2]);
+        }
+        function worldPos({clientX,clientY}) {
+            const [hw,hh] = [canvas.width/2, canvas.height /2];
+            // 裁剪空间位  相机裁剪之后的位
+            const cp = new Vector3((clientX - hw)/hw,-(clientY - hh)/hh);
+            // 鼠标在世界坐标系的世界位
+            return cp.applyMatrix4(pvMatrix.clone().invert());       
+        }
+
+
+
+        !(function ani(time = 0) {
+           scene.setUniform('u_PvMatrix',orbit.getPvMatrix().elements);
+           scene.children[0].mat.setData('u_Time', {value:time});
+
+           scene.draw();
+           requestAnimationFrame(ani)
+        })()
+
+    </script>
+</body>
+</html>

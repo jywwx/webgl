@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鼠标选择三维对象射线与平面的交点</title>
+</head>
+<body>
+    <script type="module">
+        import { Matrix4, OrthographicCamera, Vector3, Vector2,Plane, Ray } from 'https://unpkg.com/three/build/three.module.js';
+        // 三角形ABC
+        const A = new Vector3(-6,0,-4);
+        const B = new Vector3(0,0,4);
+        const C = new Vector3(6,0,-4);
+        // const A = new Vector3(-6,9,-4);
+        // const B = new Vector3(0,9,4);
+        // const C = new Vector3(6,9,-4);
+        
+        // 视点
+        const E = new Vector3(0, 12, 16);
+        // 鼠标点 
+        // const P = new Vector3(0, 3, 4);
+        const P = new Vector3(0, 3, -4);
+
+
+        {
+            // 三角形ABC 的法线
+            const AB = new Vector3().subVectors(B,A);
+            const BC = new Vector3().subVectors(C,B);
+            // 法线
+            const n = new Vector3().crossVectors(AB,BC).normalize();
+            // 基于视点 和 鼠标点 计算射线的方向 V
+            const v = new Vector3().subVectors(P,E).normalize();
+            
+
+            //根据射线与平面的交点公式求出交点
+            // M = ((A-E) * n / v * n)* v  + E
+            const M = v.clone().multiplyScalar(
+            A.clone().sub(E).dot(n) / v.clone().dot(n)
+            ).add(E);
+
+            const triangle = [A,B,C];
+
+            // 空间点是否在三角形中
+            function inTriangle (M,triangle) {
+                let bool = true
+                for (let i =0; i< 3; i++) {
+                   const j = (i + 1) % 3;
+                   console.log(i,j)
+                   const [a,b]= [triangle[i],triangle[j]];
+                   const ma = a.clone().sub(M);
+                   const ab = b.clone().sub(a);
+                   const d = ma.clone().cross(ab);
+                   const len = d .dot(n);
+                   if (len < 0) {
+                      bool = false;
+                      break;
+                   }
+                }
+                return bool; 
+            }
+
+            console.log(inTriangle(M,triangle),"M")
+        }
+        // three.js 计算一个射线是否穿过三角形内部
+
+        {
+            const plane = new Plane().setFromCoplanarPoints(A,B,C);
+            // 视点到鼠标点的方向 单位向量
+            const dir = new Vector3().subVectors(P,E).normalize();
+            // 视点 到点的射线
+            const ray = new Ray(E,dir); // new Ray(E).lookAt(P)
+            const M = new Vector3();
+            ray.intersectTriangle(A,B,C,true,M); 
+        }
+
+    </script>
+</body>
+</html>
