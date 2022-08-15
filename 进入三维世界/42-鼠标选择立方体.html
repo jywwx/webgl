@@ -72,6 +72,12 @@
 
         // 投影视图矩阵
         const pvMatrix = new Matrix4();
+        // 模型矩阵
+        const modelMatrix = new Matrix4();
+        // 插值
+        let time = 0;
+        let ang = 0;
+
         let selected = false // 三维对象 立方体被选择的状态
   
         // 顶点数据
@@ -109,7 +115,10 @@
 
         canvas.addEventListener('pointerup', event=> orbit.pointerup(event));
 
-        canvas.addEventListener('wheel', event => orbit.wheel(event));
+        canvas.addEventListener('wheel', event => {
+            orbit.wheel(event);
+            pvMatrix.copy(orbit.getPvMatrix());
+        });
 
         const scene = new Scene({gl});
         const mat = new Mat({
@@ -210,7 +219,8 @@
 
         function getVectors(j) {
             const i = j * 3;
-            return new Vector3(vertices[i],vertices[i+1],vertices[i+2]);
+            return new Vector3(vertices[i],vertices[i+1],vertices[i+2])
+            // return new Vector3(vertices[i],vertices[i+1],vertices[i+2]).applyMatrix4(modelMatrix);
         }
         function worldPos({clientX,clientY}) {
             const [hw,hh] = [canvas.width/2, canvas.height /2];
@@ -222,10 +232,24 @@
 
 
 
-        !(function ani(time = 0) {
+        !(function ani() {
            scene.setUniform('u_PvMatrix',orbit.getPvMatrix().elements);
-           scene.children[0].mat.setData('u_Time', {value:time});
 
+           if (selected) {
+             time += 20;
+             ang += 0.05;
+             mat.setData(
+                'u_Time',{
+                    value:time
+                }
+             );
+             mat.setData(
+                'u_ModelMatrix',
+                {
+                    value:new Matrix4().makeRotationY(ang).elements
+                }
+             )
+           }
            scene.draw();
            requestAnimationFrame(ani)
         })()
