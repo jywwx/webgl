@@ -1,56 +1,59 @@
 const defAttr = () => ({
   gl:null,
-  children: new Set(), //避免三维对象重复添加  
-  children2Draw: new Map(), // 键名是程序对象名称 值是普通对象 包含 program:程序对象 attrubutes: attribute集合 uniforms:uniform变量集合
-  programs:new Map(),//键名 程序对象名称  值包含与此程序对象的所有三维对象
+  children: new Set(),
+  programs: new Map(),
+  children2Draw:new Map()
 })
 export default class Scene{
   constructor(attr){
     Object.assign(this,defAttr(),attr)
   }
-  init(){
-    const { children, gl } = this
-    children.forEach(obj => {
-      obj.init(gl)
-    })
-  }
   registerProgram(name,{program,attributeNames,uniformNames}) {
-    const {gl, programs } = this;
-
-    const attributes = new Map();
-    const uniforms = new Map();
-    gl.useProgram(program);
-
-    attributeNames.forEach((name) => {
-      attributes.set(name, gl.getAttribLocation(program,name));
+    const { gl, programs } = this
+    const attributes = new Map()
+    const uniforms = new Map()
+    gl.useProgram(program)
+    attributeNames.forEach(name => {
+      attributes.set(name,gl.getAttribLocation(program,name))
     })
-    uniformNames.forEach((name) => {
-      uniforms.set(name, gl.getUniformLocation(program,name));
-    });
-    programs.set(name,{attributes, uniforms, program});
+    uniformNames.forEach(name => {
+      uniforms.set(name,gl.getUniformLocation(program,name))
+    })
+    programs.set(name,{program,attributes,uniforms})
   }
+
   add(...objs) {
-    const { children, gl } = this
-    objs.forEach(obj => {
-      children.push(obj)
-      obj.parent=this
-      obj.init(gl)
-    })
+    this.children = new Set([...this.children, ...objs])
+    this.setObjs(objs)
   }
   unshift(...objs) {
-    const { children, gl } = this
+    this.children=[...objs,...this.children]
+    this.setObjs(objs)
+  }
+  setObjs(objs) {
     objs.forEach(obj => {
-      children.unshift(obj)
-      obj.parent=this
-      obj.init(gl)
+      obj.parent = this
+      obj.init(this.gl)
     })
+    this.updateChildren2Draw()
   }
   remove(obj) {
+    this.children.delete(obj)
+    this.updateChildren2Draw()
+  }
+  updateChildren2Draw() {
     const { children } = this
-    const i=children.indexOf(obj)
-    if (i !== -1) {
-      children.splice(i,1)
-    }
+    if(!children.size){return}
+    const children2Draw = new Map()
+    children.forEach(child => {
+      const { program: name } = child.mat
+      if (children2Draw.has(name)) {
+        children2Draw.get(name).add(child)
+      } else {
+        children2Draw.set(name,new Set([child]))
+      }
+    })
+    this.children2Draw=children2Draw
   }
   setUniform(key, val) {
     this.children.forEach(({ mat }) => {
@@ -58,20 +61,23 @@ export default class Scene{
     })
   }
   draw() {
-    const {gl,children}=this
+    const {gl,children2Draw,programs}=this
     gl.clear(gl.COLOR_BUFFER_BIT)
-    children.forEach(obj => {
-      const { geo: { drawType,count},mat:{mode,program}}=obj
+    for (let [key, objs] of children2Draw.entries()) {
+      const { program, attributes, uniforms } = programs.get(key)
       gl.useProgram(program)
-      obj.update(gl)
-      if (typeof mode === 'string') {
-        this[drawType](gl,count,mode)
-      } else {
-        mode.forEach(m => {
-          this[drawType](gl,count,m)
-        })
-      }
-    })
+      objs.forEach(obj => {
+        const { geo: { drawType,count},mat:{mode}}=obj
+        obj.update(gl,attributes,uniforms)
+        if (typeof mode === 'string') {
+          this[drawType](gl,count,mode)
+        } else {
+          mode.forEach(m => {
+            this[drawType](gl,count,m)
+          })
+        }
+      })
+    }
   }
   drawArrays(gl, count, mode) {
     gl.drawArrays(gl[mode],0,count)

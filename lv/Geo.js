@@ -9,19 +9,16 @@ export default class Geo{
     Object.assign(this,defAttr(),attr)
   }
   init(gl,program){
-    gl.useProgram(program)
     this.initData(gl, program)
     this.initIndex(gl)
   }
-  initData(gl,program) {
-    for (let [key, attr] of Object.entries(this.data)) {
+  initData(gl) {
+    for (let attr of Object.values(this.data)) {
       attr.buffer = gl.createBuffer()
       gl.bindBuffer(gl.ARRAY_BUFFER, attr.buffer)
       gl.bufferData(gl.ARRAY_BUFFER, attr.array, gl.STATIC_DRAW)
-      const location = gl.getAttribLocation(program, key)
-      gl.vertexAttribPointer(location, attr.size, gl.FLOAT, false, 0, 0)
-      gl.enableVertexAttribArray(location)
-      attr.location=location
+      gl.bindBuffer(gl.ARRAY_BUFFER, null)
+      attr.needUpdate=true
     }
   }
   initIndex(gl) {
@@ -32,25 +29,29 @@ export default class Geo{
       index.buffer = gl.createBuffer()
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,index.buffer)
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,index.array,gl.STATIC_DRAW)
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null)
+      index.needUpdate=true
     } else {
       const { array, size } = this.data['a_Position']
       this.count = array.length / size
       this.drawType='drawArrays'
     }
   }
-  update(gl) {
-    this.updateData(gl)
+  update(gl,attrs) {
+    this.updateData(gl,attrs)
     this.updateIndex(gl)
   }
-  updateData(gl) {
-    for (let attr of Object.values(this.data)) {
-      const {buffer,location,size,needUpdate,array}=attr
+  updateData(gl,attrs) {
+    for (let [key,attr] of Object.entries(this.data)) {
+      const { buffer, size, needUpdate, array } = attr
+      const location=attrs.get(key)
       gl.bindBuffer(gl.ARRAY_BUFFER,buffer)
       if (needUpdate) {
         attr.needUpdate = false
         gl.bufferData(gl.ARRAY_BUFFER,array,gl.STATIC_DRAW)
       }
-      gl.vertexAttribPointer(location,size,gl.FLOAT,false,0,0)
+      gl.vertexAttribPointer(location, size, gl.FLOAT, false, 0, 0)
+      gl.enableVertexAttribArray(location)
     }
   }
   updateIndex(gl) {

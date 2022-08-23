@@ -7,13 +7,12 @@ export default class Obj3D{
     Object.assign(this,defAttr(),attr)
   }
   init(gl){
-    const { mat, geo } = this
-    mat.init(gl)
-    geo.init(gl,mat.program)
+    this.mat.init(gl)
+    this.geo.init(gl)
   }
   
-  update(gl) {
-    this.geo.update(gl)
-    this.mat.update(gl)
+  update(gl,attributes,uniforms) {
+    this.geo.update(gl,attributes)
+    this.mat.update(gl,uniforms)
   }
 }
